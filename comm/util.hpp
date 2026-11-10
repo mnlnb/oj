@@ -13,6 +13,7 @@
 
 namespace ns_util
 {
+    // GetTimeStamp 返回秒级时间供日志使用，GetTimeMs 返回毫秒级时间供临时文件命名使用。
     class TimeUtil
     {
     public:
@@ -31,8 +32,11 @@ namespace ns_util
         }
     };
 
+    // 这是相对于编译服务工作目录的路径。每次请求的源码、可执行文件和 I/O 文件都放在这里。
     const std::string temp_path = "./temp/";
 
+    // 调用者只传入不带扩展名的任务名。本类统一拼装各阶段所需的目录和后缀。
+    // 可执行文件虽用 .exe 后缀，实际由 Linux 上的 g++ 生成并由 execl 启动。
     class PathUtil
     {
     public:
@@ -90,11 +94,13 @@ namespace ns_util
 
             return false;
         }
+        // 这里把毫秒时间和进程内计数器拼成任务名。计数器按进程独立，递增和读取分开执行，
+        // 所以该方案只能降低冲突概率。多个工作进程共享 temp 目录时尤其要留意。
         static std::string UniqFileName()
         {
             static std::atomic_uint id(0);
             id++;
-            // 毫秒级时间戳+原子性递增唯一值: 来保证唯一性
+            // 用毫秒时间和计数器区分任务。
             std::string ms = TimeUtil::GetTimeMs();
             std::string uniq_id = std::to_string(id);
             return ms + "_" + uniq_id;
@@ -110,6 +116,7 @@ namespace ns_util
             out.close();
             return true;
         }
+        // 逐行读入。keep 为 true 时补回 getline 丢弃的换行，供源码、题面和运行输出使用。
         static bool ReadFile(const std::string &target, std::string *content, bool keep = false)
         {
             (*content).clear();
@@ -140,6 +147,7 @@ namespace ns_util
          * target: 输出型，保存切分完毕的结果
          * sep: 指定的分割符
          * **********************************/
+        // sep 中的每个字符都是分隔符，连续分隔符会被合并。配置项分别用冒号和空格切分。
         static void SplitString(const std::string &str, std::vector<std::string> *target, const std::string &sep)
         {
             //boost split

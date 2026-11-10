@@ -18,6 +18,8 @@ namespace ns_log
         FATAL
     };
 
+    // 先输出统一前缀 [级别][文件][行号][秒级时间戳]，再把同一个输出流交还给调用者。
+    // 调用者用 << 接上正文和换行。FATAL 只是日志级别，是否退出由调用者决定。
     inline std::ostream &Log(const std::string &level, const std::string &file_name, int line)
     {
         // 添加日志等级
@@ -47,5 +49,6 @@ namespace ns_log
     }
     // LOG(INFo) << "message" << "\n";
     // 开放式日志
+    // 预处理器把级别转成字符串，并带上调用点所在文件和行号，便于从日志定位源码。
     #define LOG(level) Log(#level, __FILE__, __LINE__)
 }

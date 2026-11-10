@@ -16,9 +16,11 @@ namespace ns_compile_and_run
     using namespace ns_compiler;
     using namespace ns_runner;
 
+    // 组织一次编译任务的完整生命周期。HTTP 层只负责收发 JSON，Compiler 和 Runner 分别处理两个子进程。
     class CompileAndRun
     {
     public:
+        // 正常返回路径统一清理本次任务涉及的文件。编译失败时通常只有源码和编译诊断文件。
         static void RemoveTempFile(const std::string &file_name)
         {
             //清理文件的个数是不确定的，但是有哪些我们是知道的
@@ -44,6 +46,8 @@ namespace ns_compile_and_run
         // code < 0 : 整个过程非运行报错(代码为空，编译报错等)
         // code = 0 : 整个过程全部完成
         //待完善
+        // 负数是服务自定义状态，正数来自运行子进程的信号编号。编译错误详情从诊断文件读取。
+        // 对信号的文案是现有约定，同一个信号也可能由其他原因触发。
         static std::string CodeToDesc(int code, const std::string &file_name)
         {
             std::string desc;
@@ -82,9 +86,9 @@ namespace ns_compile_and_run
         /***************************************
          * 输入:
          * code： 用户提交的代码
-         * input: 用户给自己提交的代码对应的输入，不做处理
-         * cpu_limit: 时间要求
-         * mem_limit: 空间要求
+         * input: 请求预留的标准输入字段，当前没有写入子进程的输入文件。
+         * cpu_limit: CPU 时间软上限，单位为秒。
+         * mem_limit: 虚拟地址空间软上限，单位为 KB。
          *
          * 输出:
          * 必填
@@ -105,6 +109,7 @@ namespace ns_compile_and_run
             reader.parse(in_json, in_value); //最后在处理差错问题
 
             std::string code = in_value["code"].asString();
+            // 当前只从请求中读取 input，后续没有写入标准输入文件。实际子进程读到的是空文件。
             std::string input = in_value["input"].asString();
             int cpu_limit = in_value["cpu_limit"].asInt();
             int mem_limit = in_value["mem_limit"].asInt();
@@ -119,8 +124,7 @@ namespace ns_compile_and_run
                 status_code = -1; //代码为空
                 goto END;
             }
-            // 形成的文件名只具有唯一性，没有目录没有后缀
-            // 毫秒级时间戳+原子性递增唯一值: 来保证唯一性
+            // 任务名本身不含目录和后缀，各阶段通过 PathUtil 生成完整路径。
             file_name = FileUtil::UniqFileName();
             //形成临时src文件
             if (!FileUtil::WriteFile(PathUtil::Src(file_name), code))
@@ -129,6 +133,7 @@ namespace ns_compile_and_run
                 goto END;
             }
 
+            // 只有找到 g++ 生成的可执行文件才继续运行。编译器诊断稍后会填入 reason。
             if (!Compiler::Compile(file_name))
             {
                 //编译失败
@@ -136,6 +141,7 @@ namespace ns_compile_and_run
                 goto END;
             }
 
+            // 题库给出的 CPU 秒数和内存 KB 会传给 Runner，在运行提交代码的子进程中应用。
             run_result = Runner::Run(file_name, cpu_limit, mem_limit);
             if (run_result < 0)
             {
@@ -151,9 +157,11 @@ namespace ns_compile_and_run
                 //运行成功
                 status_code = 0;
             }
+        // 各分支在这里汇合。先读取仍在磁盘上的诊断或输出，再生成响应，最后删除临时文件。
         END:
             out_value["status"] = status_code;
             out_value["reason"] = CodeToDesc(status_code, file_name);
+            // status 为 0 只表示当前编译和运行流程未报告错误。测试通过与否看测试代码写到 stdout 的内容。
             if (status_code == 0)
             {
                 // 整个过程全部成功

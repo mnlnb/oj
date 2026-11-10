@@ -20,6 +20,7 @@ namespace ns_model
     using namespace ns_log;
     using namespace ns_util;
 
+    // 这是备用的本地文件题库模型。当前 OJ 服务包含 oj_model2.hpp，启动时不会加载这里的题库。
     struct Question
     {
         std::string number; //题目编号，唯一
@@ -45,6 +46,8 @@ namespace ns_model
         {
             assert(LoadQuestionList(questins_list));
         }
+        // 列表每行依次存题号、标题、难度、CPU 秒数和内存 KB。
+        // 题面、编辑器初始代码和测试尾代码分别从该题号目录的 desc.txt、header.cpp、tail.cpp 读取。
         bool LoadQuestionList(const string &question_list)
         {
             //加载配置文件: questions/questions.list + 题目编号文件
@@ -81,6 +84,7 @@ namespace ns_model
                 FileUtil::ReadFile(path+"header.cpp", &(q.header), true);
                 FileUtil::ReadFile(path+"tail.cpp", &(q.tail), true);
 
+                // 以题号为键保存到内存，后续按题号查找时无需重新读取文件。
                 questions.insert({q.number, q});
             }
             LOG(INFO) << "加载题库...成功!" << "\n";

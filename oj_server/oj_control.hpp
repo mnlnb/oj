@@ -26,6 +26,8 @@ namespace ns_control
     using namespace httplib;
 
     // 提供服务的主机
+    // 一个 Machine 对应一个编译服务地址。load 记录本进程已发出、尚未结束的请求数，
+    // 用作调度参考。它不读取机器的 CPU 或内存指标。
     class Machine
     {
     public:
@@ -74,8 +76,11 @@ namespace ns_control
         }
     };
 
+    // 按 ip:port 逐行配置编译节点。进程启动后，所有有效配置先加入候选列表。
     const std::string service_machine = "./conf/service_machine.conf";
     // 负载均衡模块
+    // machines 保存节点对象，online 和 offline 只保存下标。队列变更不会搬动节点对象。
+    // 调度器的锁保护在线和离线列表，每个节点的锁则保护它自己的 load。
     class LoadBlance
     {
     private:
@@ -136,6 +141,8 @@ namespace ns_control
         }
         // id: 输出型参数
         // m : 输出型参数
+        // 在在线列表中选当前请求数最少的节点。同负载时保留先遇到的节点。
+        // 选中时只返回节点，实际发请求前由调用方更新负载。
         bool SmartChoice(int *id, Machine **m)
         {
             // 1. 使用选择好的主机(更新该主机的负载)
@@ -169,6 +176,7 @@ namespace ns_control
             mtx.unlock();
             return true;
         }
+        // HTTP 客户端没有收到响应时，控制器把该节点移出在线列表。当前请求再尝试其他候选节点。
         void OfflineMachine(int which)
         {
             mtx.lock();
@@ -185,6 +193,7 @@ namespace ns_control
             }
             mtx.unlock();
         }
+        // 恢复操作会把离线列表中的节点一次性放回在线列表。节点能否工作在下一次请求时确认。
         void OnlineMachine()
         {
             //我们统一上线，后面统一解决
@@ -216,6 +225,7 @@ namespace ns_control
     };
 
     // 这是我们的核心业务逻辑的控制器
+    // 业务层连接题库、页面渲染和编译服务调度。路由层负责取参数并返回 HTTP 响应。
     class Control
     {
     private:
@@ -237,6 +247,7 @@ namespace ns_control
         }
         //根据题目数据构建网页
         // html: 输出型参数
+        // 题库返回的编号是字符串。这里转成整数排序，使 2 排在 10 之前。
         bool AllQuestions(string *html)
         {
             bool ret = true;
@@ -274,6 +285,8 @@ namespace ns_control
         }
         // code: #include...
         // input: ""
+        // 判题入口。题库提供隐藏测试代码和资源上限，浏览器提供用户编辑后的代码。
+        // 两个代码片段拼成一个 C++ 文件后发给 /compile_and_run，最后把编译节点返回的 JSON 传回浏览器。
         void Judge(const std::string &number, const std::string in_json, std::string *out_json)
         {
             // LOG(DEBUG) << in_json << " \nnumber:" << number << "\n";
@@ -291,6 +304,7 @@ namespace ns_control
             // 2. 重新拼接用户代码+测试用例代码，形成新的代码
             Json::Value compile_value;
             compile_value["input"] = in_value["input"].asString();
+            // header 是浏览器编辑器的初始内容，已包含在提交的 code 中。后端只追加 tail，避免重复定义。
             compile_value["code"] = code + "\n" + q.tail;
             compile_value["cpu_limit"] = q.cpu_limit;
             compile_value["mem_limit"] = q.mem_limit;
@@ -312,6 +326,8 @@ namespace ns_control
                 Client cli(m->ip, m->port);
                 m->IncLoad();
                 LOG(INFO) << " 选择主机成功, 主机id: " << id << " 详情: " << m->ip << ":" << m->port << " 当前主机的负载是: " << m->Load() << "\n";
+                // 收到 HTTP 200 后直接转发响应体，编译错误也可以封装在这份 JSON 里。
+                // 没有 HTTP 响应时才摘除节点。收到非 200 时只减负载，下一轮仍可能选中同一节点。
                 if(auto res = cli.Post("/compile_and_run", compile_string, "application/json;charset=utf-8"))
                 {
                     // 5. 将结果赋值给out_json

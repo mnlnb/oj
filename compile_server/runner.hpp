@@ -26,6 +26,8 @@ namespace ns_runner
 
     public:
         //提供设置进程占用资源大小的接口
+        // RLIMIT_CPU 限制进程消耗的 CPU 时间，单位为秒。RLIMIT_AS 限制虚拟地址空间，单位为字节。
+        // 这里只设置资源软上限，不能代替墙钟超时或文件、网络和进程权限隔离。
         static void SetProcLimit(int _cpu_limit, int _mem_limit)
         {
             // 设置CPU时长
@@ -37,13 +39,13 @@ namespace ns_runner
             // 设置内存大小
             struct rlimit mem_rlimit;
             mem_rlimit.rlim_max = RLIM_INFINITY;
-            mem_rlimit.rlim_cur = _mem_limit * 1024; //转化成为KB
+            mem_rlimit.rlim_cur = _mem_limit * 1024; // 将配置值从 KB 换算成字节
             setrlimit(RLIMIT_AS, &mem_rlimit);
         }
         // 指明文件名即可，不需要代理路径，不需要带后缀
         /*******************************************
          * 返回值 > 0: 程序异常了，退出时收到了信号，返回值就是对应的信号编号
-         * 返回值 == 0: 正常运行完毕的，结果保存到了对应的临时文件中
+         * 返回值 == 0: 未观察到终止信号，输出保存到临时文件中。
          * 返回值 < 0: 内部错误
          * 
          * cpu_limit: 该程序运行的时候，可以使用的最大cpu资源上限
@@ -66,6 +68,7 @@ namespace ns_runner
              * 标准输出: 程序运行完成，输出结果是什么
              * 标准错误: 运行时错误信息
              * *******************************************/
+            // 为本次任务打开三份文件。stdin 当前是空文件，stdout 和 stderr 留给上层分别读取。
             std::string _execute = PathUtil::Exe(file_name);
             std::string _stdin   = PathUtil::Stdin(file_name);
             std::string _stdout  = PathUtil::Stdout(file_name);
@@ -92,6 +95,8 @@ namespace ns_runner
             }
             else if (pid == 0)
             {
+                // 子进程把标准输入、标准输出和标准错误分别接到文件描述符 0、1、2。
+                // 随后 execl 启动提交程序，重定向和资源限制会继续生效。
                 dup2(_stdin_fd, 0);
                 dup2(_stdout_fd, 1);
                 dup2(_stderr_fd, 2);
@@ -107,8 +112,10 @@ namespace ns_runner
                 close(_stdout_fd);
                 close(_stderr_fd);
                 int status = 0;
+                // waitpid 返回编码后的子进程状态。当前只取低 7 位作为信号编号，未检查程序的普通退出码。
+                // 因此返回 0 只代表未观察到终止信号，不能据此判断测试通过。
                 waitpid(pid, &status, 0);
-                // 程序运行异常，一定是因为因为收到了信号！
+                // 这里返回信号编号。普通退出码位于 waitpid 状态的其他位。
                 LOG(INFO) << "运行完毕, info: " << (status & 0x7F) << "\n"; 
                 return status & 0x7F;
             }

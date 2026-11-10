@@ -11,6 +11,7 @@ namespace ns_view
 {
     using namespace ns_model;
 
+    // 模板路径相对于 oj_server 的工作目录。模板占位符的名字须与下面的字典键一致。
     const std::string template_path = "./template_html/";
 
     class View
@@ -29,6 +30,7 @@ namespace ns_view
             ctemplate::TemplateDictionary root("all_questions");
             for (const auto& q : questions)
             {
+                // 每道题对应一个 question_list 子字典，模板会为每个子字典重复渲染一行。
                 ctemplate::TemplateDictionary *sub = root.AddSectionDictionary("question_list");
                 sub->SetValue("number", q.number);
                 sub->SetValue("title", q.title);
@@ -52,6 +54,7 @@ namespace ns_view
             root.SetValue("title", q.title);
             root.SetValue("star", q.star);
             root.SetValue("desc", q.desc);
+            // 只把初始代码放进编辑器。测试尾代码由控制器在收到提交后追加。
             root.SetValue("pre_code", q.header);
 
             //3. 获取被渲染的html

@@ -188,6 +188,7 @@
             enableLiveAutocompletion: true
         });
 
+        // 编辑器内容和页面上的题号决定提交内容和目标 URL。测试代码与资源上限由后端根据题号补齐。
         function submit(){
             // alert("嘿嘿!");
             // 1. 收集当前页面的有关数据, 1. 题号 2.代码
@@ -207,6 +208,7 @@
                     'code':code,
                     'input': ''
                 }),
+                // 成功回调表示浏览器收到可解析的 JSON。编译或执行结果仍需查看响应中的 status、reason 和输出。
                 success: function(data){
                     //成功得到结果
                     // console.log(data);
@@ -232,6 +234,7 @@
                 });
                 reason_lable.appendTo(result_div);
 
+                // 当前条件引用的是 status。上面从响应中提取的字段保存在 _status，这两个名字需要区分。
                 if(status == 0){
                     // 请求是成功的，编译运行过程没出问题，但是结果是否通过看测试用例的结果
                     var _stdout = data.stdout;

@@ -12,6 +12,7 @@ void Usage(std::string proc)
 //编译服务随时可能被多个人请求，必须保证传递上来的code，形成源文件名称的时候，要具有
 //唯一性，要不然多个用户之间会互相影响
 //./compile_server port
+// 编译服务入口。每个进程由命令行参数指定端口，OJ 控制器按配置选择要请求的进程。
 int main(int argc, char *argv[])
 {
     if(argc != 2){
@@ -26,6 +27,8 @@ int main(int argc, char *argv[])
     //     resp.set_content("hello httplib,你好 httplib!", "text/plain;charset=utf-8");
     // });
 
+    // 接口接收 JSON 任务，交给 CompileAndRun 组织编译和运行，再原样返回任务结果 JSON。
+    // HTTP 请求完成与代码是否编译成功是两件事。后者由响应 JSON 的 status 和 reason 表示。
     svr.Post("/compile_and_run", [](const Request &req, Response &resp){
         // 用户请求的服务正文是我们想要的json string
         std::string in_json = req.body;
@@ -37,6 +40,7 @@ int main(int argc, char *argv[])
     });
 
     // svr.set_base_dir("./wwwroot");
+    // 只接受本机请求。提交的程序将以编译服务账户运行，因此服务应由普通用户启动。
     if (!svr.listen("127.0.0.1", atoi(argv[1]))) {
         std::cerr << "Could not listen on 127.0.0.1:" << argv[1] << "\n";
         return 1;

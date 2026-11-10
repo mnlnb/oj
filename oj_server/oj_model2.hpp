@@ -13,8 +13,7 @@
 #include <cassert>
 
 
-// 根据题目list文件，加载所有的题目信息到内存中
-// model: 主要用来和数据进行交互，对外提供访问数据的接口
+// 当前服务使用的 MySQL 题库模型。它按请求查询数据库并把结果映射为 Question。
 
 namespace ns_model
 {
@@ -22,6 +21,7 @@ namespace ns_model
     using namespace ns_log;
     using namespace ns_util;
 
+    // header 用来预填编辑器。tail 存放后端追加的测试逻辑，通常包含 main 和测试输出。
     struct Question
     {
         std::string number; //题目编号，唯一
@@ -34,6 +34,7 @@ namespace ns_model
         int mem_limit;      //题目的空间要去(KB)
     };
 
+    // 此模型读取 oj 库的 oj_questions 表。连接参数使用应用账户，网页端口独立配置。
     const std::string oj_questions = "oj_questions";
     const std::string host = "127.0.0.1";
     const std::string user = "oj_client";
@@ -46,6 +47,7 @@ namespace ns_model
     public:
         Model()
         {}
+        // 每次查询单独建立连接，结果通过 out 追加给调用者。密码优先从进程环境 OJ_DB_PASSWORD 读取。
         bool QueryMySql(const std::string &sql, vector<Question> *out)
         {
             // 创建mysql句柄
@@ -81,6 +83,8 @@ namespace ns_model
 
             for(int i = 0; i < rows; i++)
             {
+                // SELECT * 的列顺序必须和下面的下标一致。0 到 7 依次是题号、标题、难度、题面、
+                // 初始代码、测试尾代码、CPU 秒数和内存 KB。新增或调整列时要同步核对这里的映射。
                 MYSQL_ROW row = mysql_fetch_row(res);
                 q.number = row[0];
                 q.title = row[1];
@@ -106,6 +110,7 @@ namespace ns_model
             sql += oj_questions;
             return QueryMySql(sql, out);
         }
+        // HTTP 路由只接受数字题号。查到恰好一行才把题目交给调用者。
         bool GetOneQuestion(const std::string &number, Question *q)
         {
             bool res = false;
