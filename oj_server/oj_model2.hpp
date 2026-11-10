@@ -2,7 +2,7 @@
 //MySQL 版本
 #include "../comm/util.hpp"
 #include "../comm/log.hpp"
-#include "include/mysql.h"
+#include <mysql.h>
 
 #include <iostream>
 #include <string>
@@ -39,7 +39,7 @@ namespace ns_model
     const std::string user = "oj_client";
     const std::string passwd = "123456";
     const std::string db = "oj";
-    const int port = 3306;
+    const int port = 8080;
 
     class Model
     {
@@ -52,7 +52,8 @@ namespace ns_model
             MYSQL *my = mysql_init(nullptr);
 
             // 连接数据库
-            if(nullptr == mysql_real_connect(my, host.c_str(), user.c_str(), passwd.c_str(),db.c_str(),port, nullptr, 0)){
+            const char *db_password = std::getenv("OJ_DB_PASSWORD");
+            if(nullptr == mysql_real_connect(my, host.c_str(), user.c_str(), db_password ? db_password : passwd.c_str(),db.c_str(),port, nullptr, 0)){
                 LOG(FATAL) << "连接数据库失败!" << "\n";
                 return false;
             }

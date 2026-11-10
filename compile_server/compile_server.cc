@@ -37,7 +37,10 @@ int main(int argc, char *argv[])
     });
 
     // svr.set_base_dir("./wwwroot");
-    svr.listen("0.0.0.0", atoi(argv[1])); //启动http服务
+    if (!svr.listen("127.0.0.1", atoi(argv[1]))) {
+        std::cerr << "Could not listen on 127.0.0.1:" << argv[1] << "\n";
+        return 1;
+    } //启动http服务
 
 
 

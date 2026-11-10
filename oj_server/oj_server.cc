@@ -53,6 +53,9 @@ int main()
     });
     
     svr.set_base_dir("./wwwroot");
-    svr.listen("0.0.0.0", 8080);
+    if (!svr.listen("127.0.0.1", 18080)) {
+        std::cerr << "Could not listen on 127.0.0.1:18080\n";
+        return 1;
+    }
     return 0;
 }

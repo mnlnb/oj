@@ -1,31 +1,16 @@
-.PHONY: all
+.PHONY: all output clean
+
 all:
-	@cd compile_server;\
-	make;\
-	cd -;\
-	cd oj_server;\
-	make;\
-	cd -;
+	$(MAKE) -C compile_server
+	$(MAKE) -C oj_server
 
-.PHONY:output
-output:
-	@mkdir -p output/compile_server;\
-	mkdir -p output/oj_server;\
-	cp -rf compile_server/compile_server output/compile_server;\
-	cp -rf compile_server/temp output/compile_server;\
-	cp -rf oj_server/conf output/oj_server/;\
-	cp -rf oj_server/lib output/oj_server/;\
-	cp -rf oj_server/questions output/oj_server/;\
-	cp -rf oj_server/template_html output/oj_server/;\
-	cp -rf oj_server/wwwroot output/oj_server/;\
-	cp -rf oj_server/oj_server output/oj_server/;
+output: all
+	mkdir -p output/compile_server/temp output/oj_server
+	cp compile_server/compile_server output/compile_server/
+	cp -R oj_server/conf oj_server/questions oj_server/template_html oj_server/wwwroot output/oj_server/
+	cp oj_server/oj_server output/oj_server/
 
-.PHONY:clean
 clean:
-	@cd compile_server;\
-	make clean;\
-	cd -;\
-	cd oj_server;\
-	make clean;\
-	cd -;\
-	rm -rf output;
+	$(MAKE) -C compile_server clean
+	$(MAKE) -C oj_server clean
+	rm -rf output

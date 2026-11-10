@@ -7,7 +7,7 @@
 
 #include <signal.h>
 #include <unistd.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 namespace ns_compile_and_run
 {

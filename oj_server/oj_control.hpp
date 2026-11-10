@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <mutex>
 #include <cassert>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 #include "../comm/util.hpp"
 #include "../comm/log.hpp"
